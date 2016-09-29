@@ -29,7 +29,9 @@ class RnaStructure:
         bases = Counter(self.structure)
         return bases['('] == bases[')']
 
-    def get_bp_position(self):
+
+
+    def find_bp_positions(self):
         """
         Find all exisitng base pairs in RNA seconday Structure.
         Return a list of tuples of base pair position
@@ -39,13 +41,33 @@ class RnaStructure:
         """
         unmatched_left = []
         base_pairs = []
+        negatives = []
         for ix, bp in enumerate(self.structure):
             if bp == '(':
                 unmatched_left.append(ix)
             elif bp == ')':
                 current_left = unmatched_left.pop()
                 base_pairs.append((current_left, ix))
-        return base_pairs
+            elif bp == '.' :
+                negatives.append(ix)
+
+
+        self.base_pairs = base_pairs
+        self.negatives = negatives
+
+
+    def get_bp_position(self):
+        """
+        return base pairs
+        :return: list containing tuples of base pair position
+        """
+        return self.base_pairs
+
+
+    def get_negatives(self):
+        return self.negatives
+
+
 
 
 
@@ -58,6 +80,7 @@ class StructureScore:
     TP : true positive
     FN : false negative
     FP : false positive
+    TN : true negative
     """
 
     def add_structure_pair(self, rna_structure_a, rna_structure_b):
@@ -82,11 +105,12 @@ class StructureScore:
         tp = self.remove_and_get_tp(base_pairs)
         fn = self.get_fn(base_pairs)
         fp = self.get_fp_corrected(base_pairs)
-
+        tn = self.get_tn()
         score = {
             'fp' : fp,
             'fn' : fn,
             'tp' : tp,
+            'tn' : tn
         }
 
         return score
@@ -98,6 +122,9 @@ class StructureScore:
 
         :return:
         """
+        self.rna_structure_pair[0].find_bp_positions()
+        self.rna_structure_pair[1].find_bp_positions()
+
         seq_a_bp = self.rna_structure_pair[0].get_bp_position()
         seq_b_bp = self.rna_structure_pair[1].get_bp_position()
         return [seq_a_bp, seq_b_bp]
@@ -222,6 +249,64 @@ class StructureScore:
                 if (y[0] < x[0] < y[1] < x[1] ):
                     contradicting.append(x)
         return list(set(contradicting))
+
+
+
+
+
+
+
+
+
+    def get_tn(self):
+        """
+        Find the TN by finding the negative bases of both structures and find their intersection
+        :return: TN
+        """
+        rna_structure_a = self.rna_structure_pair[0]
+        rna_structure_b = self.rna_structure_pair[1]
+
+        rna_structure_a.find_bp_positions()
+        rna_structure_b.find_bp_positions()
+
+        return len(set( rna_structure_a.get_negatives()) & set(rna_structure_b.get_negatives()))
+
+
+
+
+
+
+
+def calculate_mcc(fp, fn , tn, tp):
+    """
+    The function of calculating mcc is
+
+
+    top term = TP X TN -( FP) X FN
+    bottom term = ((TP+FP)(TP + FN)(TN +FP )(TN + FN))**0.5
+
+
+
+
+    :param fp:
+    :param fn:
+    :param tn:
+    :param tp:
+    :return:
+    """
+
+
+
+    top_term = tp * tn - (fp) * fn
+    bottom_term = (tp + fp) * (tp + fn) * (tn + fp) * (tn + fn)
+    bottom_term = float(bottom_term)
+    bottom_term = bottom_term**0.5
+    mcc = float(top_term)  / bottom_term
+
+    return round(mcc,3)
+
+
+
 
 
 

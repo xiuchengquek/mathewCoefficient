@@ -1,6 +1,6 @@
 import unittest
 
-from RnaStructure import RnaStructure, StructureScore
+from RnaStructure import RnaStructure, StructureScore, calculate_mcc
 
 
 class testRnaStructure(unittest.TestCase):
@@ -23,11 +23,14 @@ class testRnaStructure(unittest.TestCase):
 
     def test_get_bp(self):
         rna_structure_a = RnaStructure(self.id, self.structure)
+        rna_structure_a.find_bp_positions()
         bp_position = rna_structure_a.get_bp_position()
         self.assertCountEqual(bp_position, [(3,8)])
 
     def test_get_bp_double(self):
         rna_structure_a = RnaStructure(self.id, self.double_structure)
+        rna_structure_a.find_bp_positions()
+
         bp_position = rna_structure_a.get_bp_position()
         self.assertCountEqual(bp_position, [(3,8), (15,20)])
 
@@ -245,7 +248,7 @@ class testGetFPCorrected(unittest.TestCase):
 class testCalculateScore(unittest.TestCase):
     def setUp(self):
         self.reference_structure = RnaStructure('ref', '(...)..(.((.....).).)........') # (3,12) , (4,10)
-        ## Thre will be 2tp, 2fp, 2fn,                  (..(.(....).))'
+        ## Thre will be 2tp, 2fp, 2fn,                  (..(.(....).))'         (...)..(.((.....).).)........
         self.predicted_structure = RnaStructure('inconsistent_contradicting' , '(...)..(..(.(....).))...(...)')
 
     def test_calculate_score(self):
@@ -256,9 +259,42 @@ class testCalculateScore(unittest.TestCase):
             {
                 'fp' : 2,
                 'tp' : 2,
-                'fn' : 2
+                'fn' : 2,
+                'tn' : 16
             }
         )
+
+class testGetTN(unittest.TestCase):
+    def setUp(self):
+        self.reference_structure =  RnaStructure('ref', '(...)..(..)') #        2,3,4,  6,7,  9,10
+        self.predicted_structure =  RnaStructure('negative', '...(...)...') # 1,2,3,  5,6,7,  9,10,11
+
+    def test_negative(self):
+        ss = StructureScore()
+        ss.add_structure_pair(self.reference_structure, self.predicted_structure)
+        self.assertEqual(ss.get_tn(), 6)
+
+
+
+
+
+class testCalculateMCC(unittest.TestCase):
+    def setUp(self):
+        self.score = {
+            'fp' : 2,
+            'tp' : 2,
+            'fn' : 2,
+            'tn' : 4,
+        }
+
+    def test_calculate_mcc(self):
+        fp = self.score['fp']
+        tp = self.score['tp']
+        fn = self.score['fn']
+        tn = self.score['tn']
+
+        self.assertAlmostEquals(calculate_mcc( fp, fn, tn, tp ), 0.167)
+
 
 
 
